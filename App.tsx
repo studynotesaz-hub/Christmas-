@@ -1,7 +1,7 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Heart, Volume2, VolumeX, Gift, Music, Moon, Sparkles as SparklesIcon, Wand2 } from 'lucide-react';
+import { Star, Heart, Volume2, VolumeX, Gift, Moon, Sparkles as SparklesIcon } from 'lucide-react';
 import Snowfall from './components/Snowfall';
 import Section from './components/Section';
 import Confetti from './components/Confetti';
@@ -9,12 +9,16 @@ import SantaSleigh from './components/SantaSleigh';
 import NewYearBloom from './components/NewYearBloom';
 import HolidayFortune from './components/HolidayFortune';
 import ResolutionSparkler from './components/ResolutionSparkler';
+import ChristmasCracker from './components/ChristmasCracker';
+import WishLantern from './components/WishLantern';
+import StarTrail from './components/StarTrail';
 
 const App: React.FC = () => {
   const [isOpened, setIsOpened] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [hugs, setHugs] = useState<{id: number, x: number, delay: number}[]>([]);
+  const [clickSparkles, setClickSparkles] = useState<{id: number, x: number, y: number}[]>([]);
 
   const playJingle = useCallback(() => {
     if (isMuted) return;
@@ -27,11 +31,9 @@ const App: React.FC = () => {
         const gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, startTime);
-        
         gain.gain.setValueAtTime(0, startTime);
         gain.gain.linearRampToValueAtTime(0.12, startTime + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-        
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(startTime);
@@ -40,77 +42,84 @@ const App: React.FC = () => {
 
       const now = ctx.currentTime;
       const tempo = 0.35;
-      
       const melody = [659.25, 659.25, 659.25, 659.25, 659.25, 659.25, 659.25, 783.99, 523.25, 587.33, 659.25];
       const timings = [0, 1, 2, 3.5, 4.5, 5.5, 7, 8, 9, 10, 11];
-      
-      melody.forEach((freq, i) => {
-        playNote(freq, now + timings[i] * tempo, tempo * 0.9);
-      });
-      
+      melody.forEach((freq, i) => playNote(freq, now + timings[i] * tempo, tempo * 0.9));
     } catch (e) { console.debug("Audio blocked"); }
   }, [isMuted]);
 
-  const handleOpen = () => {
+  const handleOpen = (e: React.MouseEvent) => {
     playJingle();
     setIsOpened(true);
     setShowConfetti(true);
     setTimeout(() => setShowConfetti(false), 6000);
   };
 
-  const triggerHug = () => {
-    if (!isMuted) {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.5);
-    }
-    
-    // Generate multiple hearts across the whole width
-    const newHugs = Array.from({ length: 8 }).map((_, i) => ({
-      id: Date.now() + i,
-      x: Math.random() * 94 + 3, // Spread across screen width
-      delay: i * 0.15
-    }));
+  const handleGlobalClick = (e: React.MouseEvent) => {
+    if (!isOpened) return;
+    const newSparkle = { id: Date.now(), x: e.clientX, y: e.clientY };
+    setClickSparkles(prev => [...prev, newSparkle]);
+    setTimeout(() => setClickSparkles(prev => prev.filter(s => s.id !== newSparkle.id)), 1000);
+  };
 
+  const triggerHug = () => {
+    const newHugs = Array.from({ length: 12 }).map((_, i) => ({
+      id: Date.now() + i,
+      x: Math.random() * 96 + 2,
+      delay: i * 0.1
+    }));
     setHugs(prev => [...prev, ...newHugs]);
-    setTimeout(() => setHugs(prev => prev.filter(h => !newHugs.find(nh => nh.id === h.id))), 4000);
+    setTimeout(() => setHugs(prev => prev.filter(h => !newHugs.find(nh => nh.id === h.id))), 5000);
   };
 
   return (
-    <div className="relative min-h-screen text-[#4A453E] selection:bg-[#D4AF37]/30 bg-[#FDFBF7] overflow-x-hidden">
+    <div 
+      onClick={handleGlobalClick}
+      className="relative min-h-screen text-[#4A453E] selection:bg-[#D4AF37]/30 bg-[#FDFBF7] overflow-x-hidden"
+    >
+      <StarTrail />
+      
+      {/* Click Sparkles Layer */}
+      <AnimatePresence>
+        {clickSparkles.map(s => (
+          <motion.div
+            key={s.id}
+            initial={{ scale: 0, opacity: 1 }}
+            animate={{ scale: 2, opacity: 0 }}
+            exit={{ opacity: 0 }}
+            className="fixed pointer-events-none z-[100] text-[#D4AF37]"
+            style={{ left: s.x, top: s.y }}
+          >
+            <SparklesIcon size={24} fill="currentColor" />
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#FDFBF7] via-white to-[#F2E8DA]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#FDFBF7] via-white to-[#F2E8DA] opacity-80" />
         <Snowfall />
       </div>
 
       <Confetti active={showConfetti} />
 
-      {/* Heart Burst across full screen */}
       <div className="fixed inset-0 pointer-events-none z-[60] w-screen h-screen overflow-hidden">
         <AnimatePresence>
           {hugs.map(hug => (
             <motion.div
               key={hug.id}
-              initial={{ opacity: 0, y: '100vh', scale: 0 }}
+              initial={{ opacity: 0, y: '105vh', scale: 0 }}
               animate={{ 
                 opacity: [0, 1, 1, 0], 
                 y: '-20vh', 
-                scale: [1, 2.8, 1.8],
+                scale: [1, 3, 2],
                 x: `${hug.x}vw` 
               }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 4, ease: "easeOut", delay: hug.delay }}
-              className="absolute text-red-400/80 drop-shadow-md"
+              transition={{ duration: 5, ease: "easeOut", delay: hug.delay }}
+              className="absolute text-red-400/70 drop-shadow-lg"
               style={{ left: 0 }}
             >
-              <Heart fill="currentColor" size={52} />
+              <Heart fill="currentColor" size={56} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -118,7 +127,7 @@ const App: React.FC = () => {
 
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         <button 
-          onClick={() => setIsMuted(!isMuted)}
+          onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
           className="p-4 rounded-full glass hover:bg-white transition-all text-[#4A453E] shadow-xl border border-white"
         >
           {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
@@ -131,7 +140,7 @@ const App: React.FC = () => {
             key="hero"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -50, filter: 'blur(10px)' }}
+            exit={{ opacity: 0, y: -50 }}
             className="relative z-20 flex flex-col items-center justify-center min-h-screen text-center px-6"
           >
             <motion.div
@@ -148,7 +157,7 @@ const App: React.FC = () => {
                 A Winter Journey
               </h1>
               <p className="text-lg md:text-2xl font-light text-[#A63D40] tracking-[0.4em] uppercase">
-                To 2026 and Beyond
+                Toward 2026
               </p>
             </div>
 
@@ -159,7 +168,7 @@ const App: React.FC = () => {
               className="px-12 py-6 md:px-20 md:py-8 bg-white shadow-2xl border-2 border-[#EBE3D5] rounded-full text-[#4A453E] font-bold tracking-[0.2em] uppercase transition-all flex items-center gap-6 text-xl"
             >
               <Gift size={32} className="text-[#A63D40]" />
-              Step Into the Magic
+              Experience the Magic
             </motion.button>
           </motion.section>
         ) : (
@@ -170,7 +179,6 @@ const App: React.FC = () => {
             transition={{ duration: 1 }}
             className="relative z-20"
           >
-            {/* Christmas Note */}
             <Section className="max-w-4xl mx-auto pt-24 pb-16 px-6">
               <div className="bg-[#FFFCF9] p-8 md:p-24 rounded-[40px] md:rounded-[60px] shadow-[0_50px_100px_rgba(0,0,0,0.06)] border border-white/60 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 md:w-64 md:h-64 bg-[#D4AF37]/5 rounded-bl-[100%] pointer-events-none" />
@@ -193,13 +201,11 @@ const App: React.FC = () => {
               </div>
             </Section>
 
-            {/* Fun Interaction: Holiday Fortune */}
             <Section className="py-24 text-center px-6">
-              <h3 className="font-serif text-3xl text-[#7A746E] mb-12 italic">Shake the Magic Snowball</h3>
-              <HolidayFortune />
+              <h3 className="font-serif text-3xl text-[#7A746E] mb-12 italic">Pull the Christmas Cracker</h3>
+              <ChristmasCracker />
             </Section>
 
-            {/* Santa's Journey Segment */}
             <Section className="py-32 relative overflow-hidden">
               <div className="max-w-5xl mx-auto px-6 text-center">
                 <div className="relative inline-block mb-12">
@@ -213,7 +219,15 @@ const App: React.FC = () => {
               </div>
             </Section>
 
-            {/* New Year 2026 Segment */}
+            <Section className="py-24 text-center px-6">
+              <h3 className="font-serif text-3xl text-[#7A746E] mb-12 italic">Shake the Magic Snowball</h3>
+              <HolidayFortune />
+            </Section>
+
+            <Section className="py-32">
+               <WishLantern />
+            </Section>
+
             <Section className="py-32 bg-white/30 backdrop-blur-sm border-y border-[#EBE3D5]/40">
               <div className="max-w-4xl mx-auto px-6 text-center">
                 <NewYearBloom />
@@ -236,7 +250,6 @@ const App: React.FC = () => {
               </div>
             </Section>
 
-            {/* Send a Hug Interaction */}
             <Section className="py-24 text-center">
                <div className="mb-10 flex justify-center gap-8 text-5xl md:text-7xl">
                  <motion.span animate={{ y: [0, -15, 0] }} transition={{ repeat: Infinity, duration: 2 }}>🎁</motion.span>
@@ -246,7 +259,7 @@ const App: React.FC = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={triggerHug}
+                onClick={(e) => { e.stopPropagation(); triggerHug(); }}
                 className="px-10 py-5 bg-[#A63D40] text-white rounded-full font-bold shadow-2xl hover:shadow-[#A63D40]/40 transition-all flex items-center gap-4 mx-auto text-lg md:text-2xl"
               >
                 <Heart fill="currentColor" size={24} />
@@ -255,13 +268,13 @@ const App: React.FC = () => {
               <p className="mt-6 text-lg italic text-[#7A746E] opacity-70">Tap to fill the sky with love</p>
             </Section>
 
-            <footer className="py-24 flex flex-col items-center gap-6 text-[#7A746E]">
+            <footer className="py-24 flex flex-col items-center gap-6 text-[#7A746E] w-full">
               <div className="text-4xl">❄️</div>
-              <p className="text-lg md:text-2xl font-serif italic opacity-70 px-6 text-center leading-relaxed max-w-2xl">
+              <p className="text-lg md:text-2xl font-serif italic opacity-70 px-6 text-center leading-relaxed max-w-2xl mx-auto">
                 May your Christmas be as bright as your smile.
               </p>
-              <div className="text-center mt-10">
-                <p className="text-[10px] tracking-[1.5em] uppercase opacity-40">Happy New Year 2026</p>
+              <div className="text-center mt-10 w-full flex justify-center">
+                <p className="text-[10px] tracking-[1.5em] pl-[1.5em] uppercase opacity-40 text-center">Happy New Year 2026</p>
               </div>
             </footer>
           </motion.div>
